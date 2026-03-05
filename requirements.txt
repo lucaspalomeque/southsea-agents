@@ -1,0 +1,6 @@
+supabase==2.3.4
+anthropic
+python-dotenv
+feedparser
+httpx
+python-telegram-bot==20.7
