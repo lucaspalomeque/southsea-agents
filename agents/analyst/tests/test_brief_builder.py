@@ -1,7 +1,7 @@
-"""Tests para brief_builder.py — mock de Anthropic API."""
+"""Tests para brief_builder.py — mock de llm_client.completion."""
 
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import json
 
 from agents.analyst.brief_builder import build_brief, REQUIRED_FIELDS
@@ -48,13 +48,9 @@ def _make_research():
 
 
 class TestBuildBrief(unittest.TestCase):
-    @patch("agents.analyst.brief_builder.anthropic.Anthropic")
-    def test_produces_complete_brief(self, mock_anthropic_cls):
-        mock_msg = MagicMock()
-        mock_msg.content = [MagicMock(text=MOCK_BRIEF_RESPONSE)]
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_msg
-        mock_anthropic_cls.return_value = mock_client
+    @patch("agents.analyst.brief_builder.completion")
+    def test_produces_complete_brief(self, mock_completion):
+        mock_completion.return_value = MOCK_BRIEF_RESPONSE
 
         brief = build_brief(_make_item(), _make_research())
 
@@ -65,42 +61,29 @@ class TestBuildBrief(unittest.TestCase):
         self.assertIsInstance(brief["key_entities"], list)
         self.assertIsInstance(brief["verified_facts"], list)
 
-    @patch("agents.analyst.brief_builder.anthropic.Anthropic")
-    def test_works_without_research(self, mock_anthropic_cls):
-        mock_msg = MagicMock()
-        mock_msg.content = [MagicMock(text=MOCK_BRIEF_RESPONSE)]
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_msg
-        mock_anthropic_cls.return_value = mock_client
+    @patch("agents.analyst.brief_builder.completion")
+    def test_works_without_research(self, mock_completion):
+        mock_completion.return_value = MOCK_BRIEF_RESPONSE
 
         brief = build_brief(_make_item())
         self.assertEqual(brief["scout_item_id"], "item-1")
 
-    @patch("agents.analyst.brief_builder.anthropic.Anthropic")
-    def test_raises_on_incomplete_brief(self, mock_anthropic_cls):
-        incomplete = json.dumps({"title": "Only title"})
-        mock_msg = MagicMock()
-        mock_msg.content = [MagicMock(text=incomplete)]
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_msg
-        mock_anthropic_cls.return_value = mock_client
+    @patch("agents.analyst.brief_builder.completion")
+    def test_raises_on_incomplete_brief(self, mock_completion):
+        mock_completion.return_value = json.dumps({"title": "Only title"})
 
         with self.assertRaises(ValueError) as ctx:
             build_brief(_make_item())
         self.assertIn("faltan campos", str(ctx.exception))
 
-    @patch("agents.analyst.brief_builder.anthropic.Anthropic")
-    def test_uses_sonnet_model(self, mock_anthropic_cls):
-        mock_msg = MagicMock()
-        mock_msg.content = [MagicMock(text=MOCK_BRIEF_RESPONSE)]
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_msg
-        mock_anthropic_cls.return_value = mock_client
+    @patch("agents.analyst.brief_builder.completion")
+    def test_uses_model_from_config(self, mock_completion):
+        mock_completion.return_value = MOCK_BRIEF_RESPONSE
 
         build_brief(_make_item())
 
-        call_kwargs = mock_client.messages.create.call_args.kwargs
-        self.assertEqual(call_kwargs["model"], "claude-sonnet-4-20250514")
+        call_args = mock_completion.call_args
+        self.assertIn("sonnet", call_args[0][0])
 
 
 if __name__ == "__main__":

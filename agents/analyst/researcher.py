@@ -7,13 +7,10 @@ Produce contexto sobre cada entidad para alimentar el brief.
 import json
 import logging
 
-import anthropic
-
-from core.config import ANTHROPIC_API_KEY
+from core.llm_client import completion
+from core.model_config import MODELS
 
 logger = logging.getLogger(__name__)
-
-RESEARCH_MODEL = "claude-sonnet-4-20250514"
 
 RESEARCH_PROMPT = """You are a research analyst for a crypto/AI editorial team.
 
@@ -70,14 +67,12 @@ def research_entities(item: dict) -> dict:
     Returns:
         Dict con research por entidad: {entity_name: {description, category, relevance, key_facts}}
     """
-    if not ANTHROPIC_API_KEY:
-        raise RuntimeError("ANTHROPIC_API_KEY no definida")
-
     entities = item.get("entities") or []
     if not entities:
         logger.info("No hay entidades para investigar")
         return {}
 
+    model = MODELS["analyst.researcher"]
     prompt = RESEARCH_PROMPT.format(
         title=item.get("title", ""),
         excerpt=item.get("excerpt", ""),
@@ -87,16 +82,8 @@ def research_entities(item: dict) -> dict:
         research_reason=item.get("needs_research_reason", ""),
     )
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    logger.info(f"Researching {len(entities)} entities with {RESEARCH_MODEL}...")
-
-    response = client.messages.create(
-        model=RESEARCH_MODEL,
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw_text = response.content[0].text
+    logger.info(f"Researching {len(entities)} entities with {model}...")
+    raw_text = completion(model, [{"role": "user", "content": prompt}], max_tokens=2048)
     research = _extract_json(raw_text)
 
     logger.info(f"Research complete: {list(research.keys())}")

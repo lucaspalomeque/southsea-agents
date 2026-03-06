@@ -1,7 +1,7 @@
-"""Tests para researcher.py — mock de Anthropic API."""
+"""Tests para researcher.py — mock de llm_client.completion."""
 
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import json
 
 from agents.analyst.researcher import research_entities
@@ -34,13 +34,9 @@ def _make_item(needs_research=True):
 
 
 class TestResearchEntities(unittest.TestCase):
-    @patch("agents.analyst.researcher.anthropic.Anthropic")
-    def test_returns_research_for_entities(self, mock_anthropic_cls):
-        mock_msg = MagicMock()
-        mock_msg.content = [MagicMock(text=MOCK_RESEARCH_RESPONSE)]
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_msg
-        mock_anthropic_cls.return_value = mock_client
+    @patch("agents.analyst.researcher.completion")
+    def test_returns_research_for_entities(self, mock_completion):
+        mock_completion.return_value = MOCK_RESEARCH_RESPONSE
 
         result = research_entities(_make_item())
 
@@ -48,25 +44,20 @@ class TestResearchEntities(unittest.TestCase):
         self.assertEqual(result["Hyperliquid"]["category"], "protocol")
         self.assertIsInstance(result["Hyperliquid"]["key_facts"], list)
 
-        call_kwargs = mock_client.messages.create.call_args.kwargs
-        self.assertEqual(call_kwargs["model"], "claude-sonnet-4-20250514")
+        call_args = mock_completion.call_args
+        self.assertIn("sonnet", call_args[0][0])
 
-    @patch("agents.analyst.researcher.anthropic.Anthropic")
-    def test_returns_empty_when_no_entities(self, mock_anthropic_cls):
+    @patch("agents.analyst.researcher.completion")
+    def test_returns_empty_when_no_entities(self, mock_completion):
         item = _make_item()
         item["entities"] = []
         result = research_entities(item)
         self.assertEqual(result, {})
-        mock_anthropic_cls.return_value.messages.create.assert_not_called()
+        mock_completion.assert_not_called()
 
-    @patch("agents.analyst.researcher.anthropic.Anthropic")
-    def test_handles_markdown_fenced_json(self, mock_anthropic_cls):
-        fenced = f"```json\n{MOCK_RESEARCH_RESPONSE}\n```"
-        mock_msg = MagicMock()
-        mock_msg.content = [MagicMock(text=fenced)]
-        mock_client = MagicMock()
-        mock_client.messages.create.return_value = mock_msg
-        mock_anthropic_cls.return_value = mock_client
+    @patch("agents.analyst.researcher.completion")
+    def test_handles_markdown_fenced_json(self, mock_completion):
+        mock_completion.return_value = f"```json\n{MOCK_RESEARCH_RESPONSE}\n```"
 
         result = research_entities(_make_item())
         self.assertIn("Hyperliquid", result)
