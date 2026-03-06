@@ -7,13 +7,10 @@ title, context, key_entities, editorial_angle, verified_facts, research_notes.
 import json
 import logging
 
-import anthropic
-
-from core.config import ANTHROPIC_API_KEY
+from core.llm_client import completion
+from core.model_config import MODELS
 
 logger = logging.getLogger(__name__)
-
-BRIEF_MODEL = "claude-sonnet-4-20250514"
 
 BRIEF_PROMPT = """You are the Analyst for The Southmetaverse Sea, a crypto/AI editorial.
 
@@ -97,9 +94,7 @@ def build_brief(item: dict, research: dict | None = None) -> dict:
     Returns:
         Dict con campos de analyst_briefs listo para guardar en Supabase.
     """
-    if not ANTHROPIC_API_KEY:
-        raise RuntimeError("ANTHROPIC_API_KEY no definida")
-
+    model = MODELS["analyst.brief_builder"]
     research_section = _format_research_section(research or {})
 
     prompt = BRIEF_PROMPT.format(
@@ -113,16 +108,8 @@ def build_brief(item: dict, research: dict | None = None) -> dict:
         research_section=research_section,
     )
 
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
     logger.info(f"Building brief for: {item.get('title', '?')}")
-
-    response = client.messages.create(
-        model=BRIEF_MODEL,
-        max_tokens=2048,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw_text = response.content[0].text
+    raw_text = completion(model, [{"role": "user", "content": prompt}], max_tokens=2048)
     brief_data = _extract_json(raw_text)
 
     missing = REQUIRED_FIELDS - set(brief_data.keys())

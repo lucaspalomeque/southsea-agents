@@ -1,13 +1,10 @@
 import json
 import logging
 
-import anthropic
-
-from core.config import ANTHROPIC_API_KEY
+from core.llm_client import completion
+from core.model_config import MODELS
 
 logger = logging.getLogger(__name__)
-
-CLASSIFY_MODEL = "claude-haiku-4-5-20251001"
 
 VALID_TOPICS = {
     "crypto_defi",
@@ -70,20 +67,11 @@ def classify_items(items: list[dict]) -> list[dict]:
     if not items:
         return []
 
-    if not ANTHROPIC_API_KEY:
-        raise RuntimeError("ANTHROPIC_API_KEY no está definida. Revisá tu archivo .env")
-
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    model = MODELS["scout.classifier"]
     prompt = CLASSIFY_PROMPT + _build_items_text(items)
 
-    logger.info(f"Clasificando {len(items)} items con Claude ({CLASSIFY_MODEL})...")
-    response = client.messages.create(
-        model=CLASSIFY_MODEL,
-        max_tokens=4096,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    raw_text = response.content[0].text
+    logger.info(f"Clasificando {len(items)} items con {model}...")
+    raw_text = completion(model, [{"role": "user", "content": prompt}], max_tokens=4096)
     classifications = _extract_json(raw_text)
 
     classified = []

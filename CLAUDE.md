@@ -18,8 +18,8 @@ Este repo contiene los agentes que generan contenido 24/7. El contenido generado
 ## Stack
 
 - **Lenguaje:** Python 3.11+
-- **Base de datos:** Supabase (PostgreSQL) via `supabase-py`
-- **IA:** Anthropic Claude API (claude-sonnet como modelo principal)
+- **Base de datos:** Supabase (PostgreSQL) via Edge Functions + httpx
+- **IA:** Anthropic Claude API (Haiku para clasificación, Sonnet para research/escritura). Migrando a llm_client con soporte para Anthropic y OpenRouter como providers
 - **Variables de entorno:** Siempre en `.env`, nunca hardcodeadas
 
 ---
@@ -82,53 +82,95 @@ southsea-agents/
 # .env — nunca commitear este archivo
 
 SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_SERVICE_KEY=eyJ...   # service key, no anon key
+AGENTS_API_KEY=...             # clave compartida para autenticar agentes con Edge Functions
 
-ANTHROPIC_API_KEY=sk-ant-...
+ANTHROPIC_API_KEY=sk-ant-...   # requerida por agentes que usan Claude directo
+OPENROUTER_API_KEY=...         # provider alternativo (opcional)
 
 # Canales de distribución (se agregan en fases posteriores)
-# TWITTER_API_KEY=...
-# SUBSTACK_API_KEY=...
+# TELEGRAM_BOT_TOKEN=...
+# TELEGRAM_CHANNEL_NAMES=...
+```
+
+---
+
+## Edge Functions de agentes
+
+Los agentes no usan `supabase-py` directamente. Toda la comunicación con Supabase pasa por tres Edge Functions autenticadas con `x-agent-key`:
+
+| Edge Function    | Método | Acción  | Payload                              |
+|------------------|--------|---------|--------------------------------------|
+| `agent-ingest`   | POST   | INSERT  | `{table, ...campos}`                |
+| `agent-read`     | POST   | SELECT  | `{table, filters, limit}`           |
+| `agent-update`   | POST   | UPDATE  | `{table, id, updates}`              |
+
+Header de autenticación:
+```
+x-agent-key: <AGENTS_API_KEY>
+Content-Type: application/json
 ```
 
 ---
 
 ## Cómo interactúan los agentes con Supabase
 
-### Crear un borrador (acción principal de Writer Agent)
-
-```python
-from core.supabase_client import get_client
-
-client = get_client()
-
-post = {
-    "title": "Título del artículo",
-    "content": "Contenido en markdown...",
-    "excerpt": "Resumen corto para redes",
-    "tags": ["crypto", "defi"],
-    "status": "pending_review",      # siempre pending_review, nunca published
-    "created_by": "writer-agent",    # identificar el origen
-    "original_language": "es",
-}
-
-result = client.table("posts").insert(post).execute()
-```
-
-### Invocar Edge Functions (opcional, para enriquecer contenido)
+### Insertar un registro (via agent-ingest)
 
 ```python
 import httpx
+from core.config import SUPABASE_URL, AGENTS_API_KEY
 
-# Traducir el post automáticamente
+HEADERS = {
+    "x-agent-key": AGENTS_API_KEY,
+    "Content-Type": "application/json",
+}
+
 response = httpx.post(
-    f"{SUPABASE_URL}/functions/v1/translate-post",
-    headers={"Authorization": f"Bearer {SUPABASE_SERVICE_KEY}"},
-    json={"post_id": post_id}
+    f"{SUPABASE_URL}/functions/v1/agent-ingest",
+    headers=HEADERS,
+    json={
+        "table": "scout_items",
+        "title": "Título del item",
+        "source": "coindesk",
+        "status": "pending_analysis",
+    },
+    timeout=30,
+)
+response.raise_for_status()
+```
+
+### Leer registros (via agent-read)
+
+```python
+response = httpx.post(
+    f"{SUPABASE_URL}/functions/v1/agent-read",
+    headers=HEADERS,
+    json={
+        "table": "scout_items",
+        "filters": {"status": "pending_analysis"},
+        "limit": 10,
+    },
+    timeout=30,
+)
+items = response.json()["data"]
+```
+
+### Actualizar un registro (via agent-update)
+
+```python
+response = httpx.post(
+    f"{SUPABASE_URL}/functions/v1/agent-update",
+    headers=HEADERS,
+    json={
+        "table": "scout_items",
+        "id": item_id,
+        "updates": {"status": "analyzed"},
+    },
+    timeout=30,
 )
 ```
 
-### Edge Functions disponibles
+### Edge Functions de contenido (opcionales)
 - `format-content` — mejora estructura markdown
 - `translate-post` — traduce ES↔EN automáticamente
 - `analyze-post` — calcula reading time, sugiere splits
