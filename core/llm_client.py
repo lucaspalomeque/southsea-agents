@@ -36,21 +36,27 @@ def _parse_provider(model: str) -> tuple[str, str]:
     raise ValueError(f"Provider desconocido: '{prefix}'. Usá 'anthropic' o 'openrouter'.")
 
 
-def _call_anthropic(model_id: str, messages: list[dict], max_tokens: int) -> str:
+def _call_anthropic(model_id: str, messages: list[dict], max_tokens: int, system: str | None = None) -> str:
     if not ANTHROPIC_API_KEY:
         raise RuntimeError("ANTHROPIC_API_KEY no definida. Revisá tu .env")
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-    response = client.messages.create(
-        model=model_id,
-        max_tokens=max_tokens,
-        messages=messages,
-    )
+    kwargs = {
+        "model": model_id,
+        "max_tokens": max_tokens,
+        "messages": messages,
+    }
+    if system:
+        kwargs["system"] = system
+    response = client.messages.create(**kwargs)
     return response.content[0].text
 
 
-def _call_openrouter(model_id: str, messages: list[dict], max_tokens: int) -> str:
+def _call_openrouter(model_id: str, messages: list[dict], max_tokens: int, system: str | None = None) -> str:
     if not OPENROUTER_API_KEY:
         raise RuntimeError("OPENROUTER_API_KEY no definida. Revisá tu .env")
+    all_messages = messages
+    if system:
+        all_messages = [{"role": "system", "content": system}] + messages
     response = httpx.post(
         OPENROUTER_URL,
         headers={
@@ -59,7 +65,7 @@ def _call_openrouter(model_id: str, messages: list[dict], max_tokens: int) -> st
         },
         json={
             "model": model_id,
-            "messages": messages,
+            "messages": all_messages,
             "max_tokens": max_tokens,
         },
         timeout=60,
@@ -69,7 +75,7 @@ def _call_openrouter(model_id: str, messages: list[dict], max_tokens: int) -> st
     return data["choices"][0]["message"]["content"]
 
 
-def completion(model: str, messages: list[dict], max_tokens: int = 2048) -> str:
+def completion(model: str, messages: list[dict], max_tokens: int = 2048, system: str | None = None) -> str:
     """Llama a un modelo LLM y retorna el texto de respuesta.
 
     Args:
@@ -77,6 +83,7 @@ def completion(model: str, messages: list[dict], max_tokens: int = 2048) -> str:
                Providers: 'anthropic', 'openrouter'. Sin prefijo asume anthropic.
         messages: Lista de mensajes [{"role": "user", "content": "..."}].
         max_tokens: Máximo de tokens en la respuesta.
+        system: Prompt de sistema opcional.
 
     Returns:
         Texto de la respuesta del modelo.
@@ -85,5 +92,5 @@ def completion(model: str, messages: list[dict], max_tokens: int = 2048) -> str:
     logger.info(f"LLM call: provider={provider} model={model_id} max_tokens={max_tokens}")
 
     if provider == "anthropic":
-        return _call_anthropic(model_id, messages, max_tokens)
-    return _call_openrouter(model_id, messages, max_tokens)
+        return _call_anthropic(model_id, messages, max_tokens, system=system)
+    return _call_openrouter(model_id, messages, max_tokens, system=system)

@@ -12,4 +12,5 @@ MODELS = {
     "scout.classifier": "anthropic/claude-haiku-4-5-20251001",
     "analyst.researcher": "anthropic/claude-sonnet-4-20250514",
     "analyst.brief_builder": "anthropic/claude-sonnet-4-20250514",
+    "writer.content_generator": "anthropic/claude-sonnet-4-20250514",
 }
