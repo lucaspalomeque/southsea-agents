@@ -76,7 +76,7 @@ class TestSaveBrief(unittest.TestCase):
 
         call_json = mock_post.call_args.kwargs["json"]
         self.assertEqual(call_json["table"], "analyst_briefs")
-        self.assertEqual(call_json["record"]["scout_item_id"], "abc")
+        self.assertEqual(call_json["scout_item_id"], "abc")
 
 
 if __name__ == "__main__":

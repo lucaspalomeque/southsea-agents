@@ -30,6 +30,7 @@ MOCK_BRIEF = {
     "editorial_angle": "Angle",
     "verified_facts": ["fact1"],
     "research_notes": "",
+    "topics": ["crypto_defi"],
     "status": "pending_writing",
 }
 

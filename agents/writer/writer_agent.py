@@ -2,14 +2,13 @@
 
 Transforma analyst_briefs en artículos editoriales con la voz de la marca.
 Lee voice.md + formatos al arrancar, genera contenido en español,
-guarda posts como pending_review, y solicita traducción al inglés.
+y guarda posts como pending_review.
 
 Pipeline por brief:
 1. Seleccionar formato según contenido del brief
 2. Generar artículo con Claude Sonnet (voice + formato + brief)
 3. Guardar post en tabla posts (status: pending_review)
-4. Solicitar traducción via translate-post
-5. Actualizar brief → status: processed
+4. Actualizar brief → status: processed
 """
 
 import logging
@@ -21,7 +20,6 @@ from agents.writer.editorial_loader import load_voice, load_formats
 from agents.writer.format_selector import select_format
 from agents.writer.content_generator import generate_article
 from agents.writer.supabase_io import fetch_pending_briefs, save_post, update_brief_status
-from agents.writer.translator import translate_post
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +72,7 @@ class WriterAgent:
         return posts
 
     def _process_brief(self, brief: dict) -> dict:
-        """Procesa un solo brief: formato → artículo → post → traducción."""
+        """Procesa un solo brief: formato → artículo → post."""
         brief_id = brief["id"]
         title = brief.get("title", "?")
         logger.info(f"Procesando brief: {title} ({brief_id})")
@@ -93,7 +91,7 @@ class WriterAgent:
             "slug": slug,
             "content": article["content"],
             "excerpt": article["excerpt"],
-            "tags": brief.get("tags", brief.get("topics", [])),
+            "tags": brief.get("topics", []),
             "content_format": format_name,
             "status": "pending_review",
             "created_by": "writer-agent",
@@ -104,19 +102,13 @@ class WriterAgent:
         # 4. Guardar post
         saved_post = save_post(post_data)
 
-        # 5. Traducción (best-effort)
-        post_id = saved_post.get("id") if isinstance(saved_post, dict) else None
-        if post_id:
-            translated = translate_post(post_id)
-            if not translated:
-                logger.warning(f"Traducción falló para post {post_id}, pero el post existe")
-
-        # 6. Actualizar brief → processed
+        # 5. Actualizar brief → processed
         update_brief_status(brief_id, "processed")
 
+        post_id = saved_post.get("id", "sin id") if isinstance(saved_post, dict) else "sin id"
         logger.info(
             f"Brief procesado: {title} → formato: {format_name}, "
-            f"post: {post_id or 'sin id'}"
+            f"post: {post_id}"
         )
         return saved_post
 

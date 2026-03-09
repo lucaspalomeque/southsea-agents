@@ -30,7 +30,7 @@ SYNTHETIC_BRIEF = {
         "Gas promedio en L2: $0.02 vs $5.50 en mainnet",
     ],
     "research_notes": "Ambos L2s usan optimistic rollups. Arbitrum usa fraud proofs, Optimism migra a fault proofs.",
-    "tags": ["crypto_defi", "ethereum", "layer2"],
+    "topics": ["crypto_defi", "ethereum", "layer2"],
     "status": "pending_writing",
 }
 
@@ -42,7 +42,7 @@ SYNTHETIC_BRIEF_BREAKING = {
     "editorial_angle": "Urgente: exploit confirmado, pérdidas en curso",
     "verified_facts": ["$50M drenados según datos on-chain"],
     "research_notes": "",
-    "tags": ["crypto_defi", "security"],
+    "topics": ["crypto_defi", "security"],
     "status": "pending_writing",
 }
 
@@ -61,7 +61,7 @@ SYNTHETIC_BRIEF_EXPLAINER = {
         "de ETH reutilizar su stake para asegurar otros servicios (AVS - Actively Validated Services). "
         "Esto crea un marketplace de seguridad compartida. El riesgo es el slashing acumulado."
     ),
-    "tags": ["crypto_defi", "ethereum"],
+    "topics": ["crypto_defi", "ethereum"],
     "status": "pending_writing",
 }
 
@@ -76,7 +76,7 @@ SYNTHETIC_BRIEF_OPINION = {
         "3 protocolos DeFi multados en Q1 2026",
     ],
     "research_notes": "Uniswap argumenta que el protocolo es descentralizado y no es un exchange.",
-    "tags": ["crypto_defi", "regulation"],
+    "topics": ["crypto_defi", "regulation"],
     "status": "pending_writing",
 }
 

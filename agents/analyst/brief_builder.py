@@ -124,5 +124,6 @@ def build_brief(item: dict, research: dict | None = None) -> dict:
         "editorial_angle": brief_data["editorial_angle"],
         "verified_facts": brief_data["verified_facts"],
         "research_notes": brief_data["research_notes"],
+        "topics": item.get("topics", []),
         "status": "pending_writing",
     }

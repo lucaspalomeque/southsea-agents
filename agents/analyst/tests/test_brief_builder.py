@@ -60,6 +60,7 @@ class TestBuildBrief(unittest.TestCase):
             self.assertIn(field, brief)
         self.assertIsInstance(brief["key_entities"], list)
         self.assertIsInstance(brief["verified_facts"], list)
+        self.assertEqual(brief["topics"], ["crypto_defi", "crypto_market"])
 
     @patch("agents.analyst.brief_builder.completion")
     def test_works_without_research(self, mock_completion):

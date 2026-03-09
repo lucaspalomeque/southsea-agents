@@ -23,7 +23,6 @@ MOCK_SAVED_POST = {
 }
 
 
-@patch("agents.writer.writer_agent.translate_post")
 @patch("agents.writer.writer_agent.update_brief_status")
 @patch("agents.writer.writer_agent.save_post")
 @patch("agents.writer.writer_agent.generate_article")
@@ -40,14 +39,13 @@ class TestWriterAgent(unittest.TestCase):
 
     def test_full_pipeline(
         self, mock_voice, mock_formats, mock_fetch, mock_select,
-        mock_generate, mock_save, mock_update_brief, mock_translate,
+        mock_generate, mock_save, mock_update_brief,
     ):
         agent = self._make_agent(mock_voice, mock_formats)
         mock_fetch.return_value = [SYNTHETIC_BRIEF]
         mock_select.return_value = "analysis"
         mock_generate.return_value = MOCK_ARTICLE
         mock_save.return_value = MOCK_SAVED_POST
-        mock_translate.return_value = True
 
         result = agent.run()
 
@@ -55,7 +53,6 @@ class TestWriterAgent(unittest.TestCase):
         mock_select.assert_called_once()
         mock_generate.assert_called_once()
         mock_save.assert_called_once()
-        mock_translate.assert_called_once_with("post-001")
         mock_update_brief.assert_called_once_with("brief-001", "processed")
 
         # Verify post data
@@ -67,10 +64,11 @@ class TestWriterAgent(unittest.TestCase):
         self.assertEqual(saved_post_arg["analyst_brief_id"], "brief-001")
         self.assertIn("slug", saved_post_arg)
         self.assertTrue(saved_post_arg["slug"].startswith("test-article-"))
+        self.assertEqual(saved_post_arg["tags"], ["crypto_defi", "ethereum", "layer2"])
 
     def test_empty_queue(
         self, mock_voice, mock_formats, mock_fetch, mock_select,
-        mock_generate, mock_save, mock_update_brief, mock_translate,
+        mock_generate, mock_save, mock_update_brief,
     ):
         agent = self._make_agent(mock_voice, mock_formats)
         mock_fetch.return_value = []
@@ -82,7 +80,7 @@ class TestWriterAgent(unittest.TestCase):
 
     def test_generation_failure_does_not_update_brief(
         self, mock_voice, mock_formats, mock_fetch, mock_select,
-        mock_generate, mock_save, mock_update_brief, mock_translate,
+        mock_generate, mock_save, mock_update_brief,
     ):
         agent = self._make_agent(mock_voice, mock_formats)
         mock_fetch.return_value = [SYNTHETIC_BRIEF]
@@ -96,7 +94,7 @@ class TestWriterAgent(unittest.TestCase):
 
     def test_save_failure_does_not_update_brief(
         self, mock_voice, mock_formats, mock_fetch, mock_select,
-        mock_generate, mock_save, mock_update_brief, mock_translate,
+        mock_generate, mock_save, mock_update_brief,
     ):
         agent = self._make_agent(mock_voice, mock_formats)
         mock_fetch.return_value = [SYNTHETIC_BRIEF]
@@ -109,32 +107,15 @@ class TestWriterAgent(unittest.TestCase):
         self.assertEqual(result, [])
         mock_update_brief.assert_not_called()
 
-    def test_translate_failure_still_updates_brief(
-        self, mock_voice, mock_formats, mock_fetch, mock_select,
-        mock_generate, mock_save, mock_update_brief, mock_translate,
-    ):
-        agent = self._make_agent(mock_voice, mock_formats)
-        mock_fetch.return_value = [SYNTHETIC_BRIEF]
-        mock_select.return_value = "analysis"
-        mock_generate.return_value = MOCK_ARTICLE
-        mock_save.return_value = MOCK_SAVED_POST
-        mock_translate.return_value = False  # traducción falla
-
-        result = agent.run()
-
-        self.assertEqual(len(result), 1)
-        mock_update_brief.assert_called_once_with("brief-001", "processed")
-
     def test_content_format_matches_selected(
         self, mock_voice, mock_formats, mock_fetch, mock_select,
-        mock_generate, mock_save, mock_update_brief, mock_translate,
+        mock_generate, mock_save, mock_update_brief,
     ):
         agent = self._make_agent(mock_voice, mock_formats)
         mock_fetch.return_value = [SYNTHETIC_BRIEF]
         mock_select.return_value = "breaking"
         mock_generate.return_value = MOCK_ARTICLE
         mock_save.return_value = MOCK_SAVED_POST
-        mock_translate.return_value = True
 
         agent.run()
 
@@ -143,7 +124,7 @@ class TestWriterAgent(unittest.TestCase):
 
     def test_multiple_briefs_continues_on_error(
         self, mock_voice, mock_formats, mock_fetch, mock_select,
-        mock_generate, mock_save, mock_update_brief, mock_translate,
+        mock_generate, mock_save, mock_update_brief,
     ):
         agent = self._make_agent(mock_voice, mock_formats)
         brief_2 = {**SYNTHETIC_BRIEF, "id": "brief-002", "title": "Second brief"}
@@ -151,13 +132,28 @@ class TestWriterAgent(unittest.TestCase):
         mock_select.return_value = "analysis"
         mock_generate.side_effect = [ValueError("fail"), MOCK_ARTICLE]
         mock_save.return_value = MOCK_SAVED_POST
-        mock_translate.return_value = True
 
         result = agent.run()
 
         # First fails, second succeeds
         self.assertEqual(len(result), 1)
         mock_update_brief.assert_called_once_with("brief-002", "processed")
+
+    def test_topics_passed_as_tags(
+        self, mock_voice, mock_formats, mock_fetch, mock_select,
+        mock_generate, mock_save, mock_update_brief,
+    ):
+        agent = self._make_agent(mock_voice, mock_formats)
+        brief_with_topics = {**SYNTHETIC_BRIEF, "topics": ["ai", "crypto"]}
+        mock_fetch.return_value = [brief_with_topics]
+        mock_select.return_value = "analysis"
+        mock_generate.return_value = MOCK_ARTICLE
+        mock_save.return_value = MOCK_SAVED_POST
+
+        agent.run()
+
+        saved_post_arg = mock_save.call_args.args[0]
+        self.assertEqual(saved_post_arg["tags"], ["ai", "crypto"])
 
 
 if __name__ == "__main__":
