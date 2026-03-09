@@ -65,6 +65,8 @@ class TestWriterAgent(unittest.TestCase):
         self.assertEqual(saved_post_arg["original_language"], "es")
         self.assertEqual(saved_post_arg["content_format"], "analysis")
         self.assertEqual(saved_post_arg["analyst_brief_id"], "brief-001")
+        self.assertIn("slug", saved_post_arg)
+        self.assertTrue(saved_post_arg["slug"].startswith("test-article-"))
 
     def test_empty_queue(
         self, mock_voice, mock_formats, mock_fetch, mock_select,

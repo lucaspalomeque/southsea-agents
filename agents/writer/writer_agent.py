@@ -13,6 +13,8 @@ Pipeline por brief:
 """
 
 import logging
+import re
+import unicodedata
 from datetime import datetime, timezone
 
 from agents.writer.editorial_loader import load_voice, load_formats
@@ -85,8 +87,10 @@ class WriterAgent:
         article = generate_article(brief, self.voice, format_template, format_name)
 
         # 3. Construir post
+        slug = _slugify(article["title"])
         post_data = {
             "title": article["title"],
+            "slug": slug,
             "content": article["content"],
             "excerpt": article["excerpt"],
             "tags": brief.get("tags", brief.get("topics", [])),
@@ -115,3 +119,15 @@ class WriterAgent:
             f"post: {post_id or 'sin id'}"
         )
         return saved_post
+
+
+def _slugify(text: str) -> str:
+    """Convierte un título en slug URL-friendly."""
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = text.lower()
+    text = re.sub(r"[^a-z0-9\s-]", "", text)
+    text = re.sub(r"[\s-]+", "-", text).strip("-")
+    # Agregar timestamp para evitar colisiones
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
+    return f"{text[:80]}-{ts}"
