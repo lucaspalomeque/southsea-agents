@@ -19,7 +19,7 @@ Este repo contiene los agentes que generan contenido 24/7. El contenido generado
 
 - **Lenguaje:** Python 3.11+
 - **Base de datos:** Supabase (PostgreSQL) via Edge Functions + httpx
-- **IA:** Anthropic Claude API (Haiku para clasificación, Sonnet para research/escritura). Migrando a llm_client con soporte para Anthropic y OpenRouter como providers
+- **IA:** Anthropic Claude API via `core/llm_client.py` (Haiku para clasificación, Sonnet para research/escritura). Soporta Anthropic y OpenRouter como providers
 - **Variables de entorno:** Siempre en `.env`, nunca hardcodeadas
 
 ---
@@ -42,16 +42,24 @@ southsea-agents/
 │   └── publisher/          # Publisher Agent: distribución a canales
 │
 ├── core/
-│   ├── supabase_client.py  # Cliente Supabase compartido
+│   ├── supabase_client.py  # Cliente Supabase compartido (ingest via Edge Functions)
+│   ├── llm_client.py       # Abstracción LLM: completion() con soporte Anthropic + OpenRouter
+│   ├── model_config.py     # Modelos por tarea (scout.classifier, writer.content_generator, etc.)
 │   ├── models.py           # Modelos de datos (Post, Brief, etc.)
 │   └── config.py           # Configuración global desde .env
+│
+├── editorial/
+│   ├── voice.md            # Guía de voz editorial (system prompt del Writer)
+│   └── formats/            # Templates de formato (analysis, breaking, explainer, opinion)
+│
+├── scripts/                # Runners para ejecutar agentes manualmente
 │
 ├── specs/                  # Specs de cada agente (leer antes de implementar)
 │   ├── scout.md
 │   ├── analyst.md
 │   ├── writer.md
-│   ├── editor.md
-│   └── publisher.md
+│   ├── editor.md           # pendiente
+│   └── publisher.md        # pendiente
 │
 └── docs/                   # Documentación adicional
 ```
@@ -273,21 +281,25 @@ Contenido fuera de estos temas debe descartarse en el Scout Agent.
 
 ## Voz editorial de la marca
 
-*Detalle completo en `specs/writer.md`.*
+Definida en `editorial/voice.md` (se inyecta como system prompt del Writer Agent). Tres influencias principales: **Ray Dalio** (mecanismos), **Yuval Harari** (narrativa macro), **Balaji Srinivasan** (tesis con datos).
 
-La voz de The Southmetaverse Sea es una mezcla específica de cinco influencias:
+Los formatos editoriales viven en `editorial/formats/`: analysis, breaking, explainer, opinion. El Writer selecciona el formato automáticamente según el contenido del brief.
 
-- **Techno-optimista** — el futuro que construyen crypto e IA es mejor que el presente. Hay una postura, no neutralidad vacía.
-- **Estilo Harari** — narrativas grandes que conectan lo micro con lo macro. Un protocolo DeFi no es solo código — es un capítulo de cómo los humanos coordinan valor. Claridad sin sacrificar profundidad.
-- **Metáforas Borges** — lo técnico explicado con imágenes inesperadas. Lo fantástico como puerta de entrada a lo complejo. Un smart contract como un laberinto que se ejecuta solo.
-- **d/acc (Defensive Acceleration)** — tecnología que empodera individuos y comunidades, no que concentra poder. Escepticismo hacia el control centralizado, optimismo hacia los sistemas abiertos.
-- **The Network State** — las redes reemplazan a los estados. Las comunidades online se vuelven reales. La soberanía se construye con código y consenso, no con territorio.
+No modificar estos archivos sin revisar el output del pipeline — son documentos vivos que se iteran viendo resultados.
 
-Principios operacionales:
-- Perspectiva propia, no reposteo neutro
-- Tono analítico pero accesible
-- Bilingüe (español e inglés)
-- Rigor factual — si no se puede verificar, no se afirma
+---
+
+## Estado actual de los agentes
+
+| Agente | Estado | Notas |
+|--------|--------|-------|
+| **Scout** | ✅ Funcional | RSS (CoinDesk, a16z YT, YC YT). 3 feeds rotos (bankless, coin_bureau, yt_network_state). Clasifica con Haiku. |
+| **Analyst** | ✅ Funcional | Genera briefs editoriales con Sonnet. Research condicional por entidad. |
+| **Writer** | ✅ Funcional | Artículos con formato automático (analysis/breaking/explainer/opinion). Genera slug, guarda como `pending_review`. Traducción via translate-post (pendiente fix auth). |
+| **Editor** | ⏳ Pendiente | Spec por escribir. |
+| **Publisher** | ⏳ Pendiente | Spec por escribir. |
+
+Pipeline end-to-end probado: Scout → Analyst → Writer con datos reales de RSS.
 
 ---
 
