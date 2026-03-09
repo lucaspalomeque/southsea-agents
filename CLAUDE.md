@@ -52,14 +52,22 @@ southsea-agents/
 │   ├── voice.md            # Guía de voz editorial (system prompt del Writer)
 │   └── formats/            # Templates de formato (analysis, breaking, explainer, opinion)
 │
-├── scripts/                # Runners para ejecutar agentes manualmente
+├── scripts/
+│   ├── run_pipeline.py     # Pipeline Orchestrator (Scout→Analyst→Writer→Editor)
+│   ├── run_analyst.py      # Runner individual del Analyst
+│   ├── run_writer.py       # Runner individual del Writer
+│   ├── run_editor.py       # Runner individual del Editor
+│   └── tests/              # Tests del orchestrator
 │
 ├── specs/                  # Specs de cada agente (leer antes de implementar)
 │   ├── scout.md
 │   ├── analyst.md
 │   ├── writer.md
-│   ├── editor.md           # pendiente
+│   ├── editor.md
+│   ├── orchestrator.md
 │   └── publisher.md        # pendiente
+│
+├── logs/                   # Logs del pipeline (en .gitignore)
 │
 └── docs/                   # Documentación adicional
 ```
@@ -180,18 +188,23 @@ response = httpx.post(
 
 ### Edge Functions de contenido (opcionales)
 - `format-content` — mejora estructura markdown
-- `translate-post` — traduce ES↔EN automáticamente
 - `analyze-post` — calcula reading time, sugiere splits
 - `sync-knowledge` — actualiza embeddings RAG
 
 ---
 
-## Estados del campo `status`
+## Estados del campo `status` — cadena completa del pipeline
 
 ```
-pending_review  → creado por agente, esperando aprobación humana  ← agentes solo escriben esto
-published       → aprobado por humano y publicado                 ← agentes nunca escriben esto
-draft           → borrador creado manualmente por humano          ← agentes no tocan esto
+scout_items.status:
+  pending_analysis  → Scout crea item                             ← Scout escribe esto
+  processed         → Analyst terminó el brief                    ← Analyst escribe esto
+
+posts.status:
+  pending_editing   → Writer creó el artículo                     ← Writer escribe esto
+  needs_revision    → Editor devolvió al Writer                   ← Editor escribe esto
+  pending_review    → Editor aprobó, esperando revisión humana    ← Editor escribe esto
+  published         → Humano aprobó desde CMS                     ← agentes nunca escriben esto
 ```
 
 ---
@@ -295,11 +308,25 @@ No modificar estos archivos sin revisar el output del pipeline — son documento
 |--------|--------|-------|
 | **Scout** | ✅ Funcional | RSS (CoinDesk, a16z YT, YC YT). 3 feeds rotos (bankless, coin_bureau, yt_network_state). Clasifica con Haiku. |
 | **Analyst** | ✅ Funcional | Genera briefs editoriales con Sonnet. Research condicional por entidad. |
-| **Writer** | ✅ Funcional | Artículos con formato automático (analysis/breaking/explainer/opinion). Genera slug, guarda como `pending_review`. Traducción via translate-post (pendiente fix auth). |
-| **Editor** | ⏳ Pendiente | Spec por escribir. |
-| **Publisher** | ⏳ Pendiente | Spec por escribir. |
+| **Writer** | ✅ Funcional | Artículos con formato automático (analysis/breaking/explainer/opinion). Genera slug, guarda como `pending_editing`. |
+| **Editor** | ✅ Funcional | Evaluación editorial con Haiku en 4 dimensiones. Regla de veto. 33 tests. |
+| **Publisher** | ⏳ Pospuesto | El blog publica automáticamente desde Supabase. Publisher entra cuando haya canales externos (Telegram, newsletter, etc.). |
 
-Pipeline end-to-end probado: Scout → Analyst → Writer con datos reales de RSS.
+**Pipeline Orchestrator** (`scripts/run_pipeline.py`): ejecuta los 4 agentes en secuencia con timeouts configurables (Scout 5min, Analyst 15min, Writer 15min, Editor 10min), retry con backoff de 30s, logging dual (archivo + consola), reporte final, y rotación de logs (máx 30). Un agente que falla no tumba el pipeline.
+
+Pipeline end-to-end probado: Scout → Analyst → Writer → Editor con datos reales de RSS. 123 tests pasando.
+
+Cron job: `0 0,6,12,18 * * *` (cada 6 horas) — pendiente de activar en crontab.
+
+---
+
+## Decisiones de arquitectura
+
+- **Publisher pospuesto** hasta que haya canales externos (Telegram, newsletter, etc.)
+- **Blog en Lovable** = canal de publicación principal del MVP
+- **Editor solo aprueba o devuelve**, nunca descarta (MVP)
+- **Traducción manual desde CMS** (MVP) — los agentes generan solo en español
+- **Selección intencional de modelos:** Haiku para clasificación/verificación, Sonnet para research/creación
 
 ---
 
