@@ -14,7 +14,8 @@ class ScoutAgent:
     Ver specs/scout.md para el detalle completo.
     """
 
-    def __init__(self):
+    def __init__(self, batch_size: int | None = None):
+        self.batch_size = batch_size
         self.seen_urls: set[str] = set()
 
     def run(self) -> list[dict]:
@@ -43,7 +44,12 @@ class ScoutAgent:
         unique = deduplicate(classified, self.seen_urls)
         logger.info(f"Items unicos: {len(unique)}")
 
-        # 4. Enviar a Supabase
+        # 4. Limitar batch si corresponde
+        if self.batch_size is not None:
+            unique = unique[:self.batch_size]
+            logger.info(f"Batch limitado a {self.batch_size} item(s)")
+
+        # 5. Enviar a Supabase
         ingested = []
         for item in unique:
             try:

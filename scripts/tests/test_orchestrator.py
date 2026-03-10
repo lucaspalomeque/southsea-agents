@@ -233,6 +233,25 @@ class TestGenerateReport(unittest.TestCase):
         self.assertIn("FAILED", report)
         self.assertIn("connection refused", report)
 
+    def test_smoke_test_report_has_label(self):
+        results = [AgentResult("scout", items_success=1, status="ok")]
+        start = datetime(2026, 3, 9, 12, 0, 0)
+        end = datetime(2026, 3, 9, 12, 0, 30)
+
+        report = generate_report(results, start, end, smoke_test=True)
+
+        self.assertIn("SMOKE TEST", report)
+        self.assertIn("PIPELINE REPORT", report)
+
+    def test_smoke_test_report_normal_has_no_label(self):
+        results = [AgentResult("scout", items_success=1, status="ok")]
+        start = datetime(2026, 3, 9, 12, 0, 0)
+        end = datetime(2026, 3, 9, 12, 0, 30)
+
+        report = generate_report(results, start, end, smoke_test=False)
+
+        self.assertNotIn("SMOKE TEST", report)
+
     def test_report_retry_ok_noted(self):
         results = [
             AgentResult("scout", items_success=5, status="retry_ok"),

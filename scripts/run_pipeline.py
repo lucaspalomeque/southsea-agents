@@ -5,6 +5,7 @@ Un agente que falla no tumba el pipeline.
 Logging dual: archivo en logs/ + consola.
 """
 
+import argparse
 import dataclasses
 import logging
 import signal
@@ -108,6 +109,36 @@ PIPELINE = [
     ("analyst", make_analyst),
     ("writer", make_writer),
     ("editor", make_editor),
+]
+
+SMOKE_TIMEOUT = 60  # 1 min por agente en smoke test
+
+
+def make_scout_smoke():
+    from agents.scout.scout_agent import ScoutAgent
+    return ScoutAgent(batch_size=1)
+
+
+def make_analyst_smoke():
+    from agents.analyst.analyst_agent import AnalystAgent
+    return AnalystAgent(batch_size=1)
+
+
+def make_writer_smoke():
+    from agents.writer.writer_agent import WriterAgent
+    return WriterAgent(batch_size=1, editorial_dir="editorial")
+
+
+def make_editor_smoke():
+    from agents.editor.editor_agent import EditorAgent
+    return EditorAgent(batch_size=1, editorial_dir="editorial")
+
+
+PIPELINE_SMOKE = [
+    ("scout", make_scout_smoke),
+    ("analyst", make_analyst_smoke),
+    ("writer", make_writer_smoke),
+    ("editor", make_editor_smoke),
 ]
 
 
@@ -230,20 +261,22 @@ AGENT_LABELS = {
 }
 
 
-def generate_report(results: list[AgentResult], start_time: datetime, end_time: datetime) -> str:
+def generate_report(results: list[AgentResult], start_time: datetime, end_time: datetime, smoke_test: bool = False) -> str:
     """Genera el reporte final del pipeline."""
     duration = end_time - start_time
     total_seconds = duration.total_seconds()
     minutes = int(total_seconds // 60)
     seconds = int(total_seconds % 60)
 
-    lines = [
-        "",
+    lines = [""]
+    if smoke_test:
+        lines.append("🔥 SMOKE TEST")
+    lines.extend([
         "═" * 50,
         f"  PIPELINE REPORT — {start_time:%Y-%m-%d %H:%M UTC}",
         "═" * 50,
         "",
-    ]
+    ])
 
     for r in results:
         label = AGENT_LABELS.get(r.agent_name, r.agent_name)
@@ -279,31 +312,34 @@ def generate_report(results: list[AgentResult], start_time: datetime, end_time: 
 # ---------------------------------------------------------------------------
 # Pipeline principal
 # ---------------------------------------------------------------------------
-def run_pipeline() -> list[AgentResult]:
+def run_pipeline(smoke_test: bool = False) -> list[AgentResult]:
     """Ejecuta el pipeline completo: Scout → Analyst → Writer → Editor."""
     log_path = setup_logging()
     rotate_logs()
 
+    pipeline = PIPELINE_SMOKE if smoke_test else PIPELINE
+
     start_time = datetime.now()
-    logger.info("Pipeline iniciado")
+    mode_label = "SMOKE TEST" if smoke_test else "Pipeline"
+    logger.info(f"{mode_label} iniciado")
     logger.info(f"Log: {log_path}")
 
     results = []
-    for agent_name, factory in PIPELINE:
+    for agent_name, factory in pipeline:
         logger.info(f"{'─' * 40}")
         logger.info(f"Ejecutando {AGENT_LABELS.get(agent_name, agent_name)}...")
-        timeout_s = AGENT_TIMEOUTS.get(agent_name, 300)
+        timeout_s = SMOKE_TIMEOUT if smoke_test else AGENT_TIMEOUTS.get(agent_name, 300)
         result = run_agent_with_metrics(agent_name, factory, timeout_seconds=timeout_s)
         results.append(result)
 
     end_time = datetime.now()
-    report = generate_report(results, start_time, end_time)
+    report = generate_report(results, start_time, end_time, smoke_test=smoke_test)
     logger.info(report)
 
     from core.telegram_notifier import send_report
     send_report(report)
 
-    logger.info("Pipeline finalizado")
+    logger.info(f"{mode_label} finalizado")
 
     return results
 
@@ -311,5 +347,16 @@ def run_pipeline() -> list[AgentResult]:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+def parse_args():
+    parser = argparse.ArgumentParser(description="Pipeline Orchestrator — southsea-agents")
+    parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        help="Correr pipeline con máx 1 item por agente (verificación rápida)",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    run_pipeline()
+    args = parse_args()
+    run_pipeline(smoke_test=args.smoke_test)
