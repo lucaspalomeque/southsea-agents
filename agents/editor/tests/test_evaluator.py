@@ -112,13 +112,13 @@ class TestEvaluate(unittest.TestCase):
         # Verify the prompt was built (completion was called)
         mock_completion.assert_called_once()
 
-    def test_calls_haiku_model(self, mock_completion):
+    def test_calls_configured_model(self, mock_completion):
         mock_completion.return_value = SYNTHETIC_LLM_EVALUATION_APPROVED
 
         evaluate(SYNTHETIC_POST, SYNTHETIC_BRIEF, SYNTHETIC_VOICE, SYNTHETIC_FORMAT_ANALYSIS)
 
         call_kwargs = mock_completion.call_args.kwargs
-        self.assertEqual(call_kwargs["model"], "anthropic/claude-haiku-4-5-20251001")
+        self.assertEqual(call_kwargs["model"], "openrouter/deepseek/deepseek-v3.2")
 
 
 if __name__ == "__main__":
