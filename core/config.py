@@ -24,3 +24,7 @@ OPENROUTER_API_KEY: str | None = os.getenv("OPENROUTER_API_KEY") or None
 TELEGRAM_BOT_TOKEN: str | None = os.getenv("TELEGRAM_BOT_TOKEN") or None
 _channels = os.getenv("TELEGRAM_CHANNEL_NAMES")
 TELEGRAM_CHANNEL_NAMES: list[str] | None = _channels.split(",") if _channels else None
+
+# Bot de notificación del pipeline (independiente del Publisher)
+SOUTHSEA_BOT_TOKEN: str | None = os.getenv("SOUTHSEA_BOT_TOKEN") or None
+SOUTHSEA_CHAT_ID: str | None = os.getenv("SOUTHSEA_CHAT_ID") or None

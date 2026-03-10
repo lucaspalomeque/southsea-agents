@@ -299,6 +299,10 @@ def run_pipeline() -> list[AgentResult]:
     end_time = datetime.now()
     report = generate_report(results, start_time, end_time)
     logger.info(report)
+
+    from core.telegram_notifier import send_report
+    send_report(report)
+
     logger.info("Pipeline finalizado")
 
     return results
