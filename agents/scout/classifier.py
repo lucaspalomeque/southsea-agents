@@ -1,6 +1,7 @@
 import json
 import logging
 
+from core.agent_config import get_prompt
 from core.llm_client import completion
 from core.model_config import MODELS
 
@@ -17,29 +18,7 @@ VALID_TOPICS = {
     "network_state",
 }
 
-CLASSIFY_PROMPT = """Classify each news item into topics and extract named entities.
-
-Valid topics: crypto_defi, crypto_market, web3, ai_tech, genai_art, geopolitics, startups, network_state
-
-Rules:
-- Each item can have 1 or more topics, or NONE if it doesn't fit any category
-- Only assign topics that are clearly relevant
-- Geopolitics only counts if it directly impacts crypto, AI, or tech regulation
-- Extract entities: projects, protocols, people, tokens, companies mentioned
-- If an item doesn't fit ANY topic, set topics to an empty list
-
-Return a JSON array with one object per item, in the same order as the input:
-[
-  {
-    "index": 0,
-    "topics": ["crypto_defi", "crypto_market"],
-    "entities": ["Uniswap", "Ethereum"]
-  },
-  ...
-]
-
-Items to classify:
-"""
+CLASSIFY_PROMPT = get_prompt("scout", "classifier")
 
 
 def _build_items_text(items: list[dict]) -> str:

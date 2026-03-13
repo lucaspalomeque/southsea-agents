@@ -7,45 +7,13 @@ Produce contexto sobre cada entidad para alimentar el brief.
 import json
 import logging
 
+from core.agent_config import get_prompt
 from core.llm_client import completion
 from core.model_config import MODELS
 
 logger = logging.getLogger(__name__)
 
-RESEARCH_PROMPT = """You are a research analyst for a crypto/AI editorial team.
-
-Given a news item and a list of entities that need research, provide factual context about each entity.
-
-For each entity, return:
-- description: What is it? (1-2 sentences)
-- category: One of: protocol, token, person, company, dao, chain, tool, other
-- relevance: Why does it matter in the crypto/AI space? (1 sentence)
-- key_facts: List of 2-4 verified factual statements
-
-IMPORTANT:
-- Only state facts you are confident about. If unsure, say "unverified" explicitly.
-- Do not speculate or invent information.
-- Focus on what's relevant to crypto, DeFi, AI, and Web3.
-
-News item:
-Title: {title}
-Excerpt: {excerpt}
-Source: {source}
-Topics: {topics}
-
-Entities to research: {entities}
-Research reason: {research_reason}
-
-Return a JSON object where keys are entity names:
-{{
-  "EntityName": {{
-    "description": "...",
-    "category": "protocol|token|person|company|dao|chain|tool|other",
-    "relevance": "...",
-    "key_facts": ["fact1", "fact2"]
-  }}
-}}
-"""
+RESEARCH_PROMPT = get_prompt("analyst", "researcher")
 
 
 def _extract_json(raw_text: str) -> dict:

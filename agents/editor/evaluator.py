@@ -12,6 +12,7 @@ Regla de veto: si cualquier dimensión < 4.0, el post se devuelve.
 import json
 import logging
 
+from core.agent_config import get_prompt
 from core.llm_client import completion
 from core.model_config import MODELS
 
@@ -23,37 +24,7 @@ DIMENSIONS = ["voice_alignment", "factual_rigor", "format_compliance", "thematic
 
 VETO_THRESHOLD = 4.0
 
-SYSTEM_PROMPT = """Sos el Editor Agent de The Southmetaverse Sea, una editorial de IA que cubre Crypto/Web3/DeFi, Tech/IA y GenAI Art.
-
-Tu trabajo es evaluar borradores editoriales en 4 dimensiones, con un score de 1.0 a 10.0 cada una.
-
-## Guía de voz editorial
-
-{voice}
-
-## Dimensiones de evaluación
-
-1. **voice_alignment** (1-10): ¿El artículo respeta la voz editorial? Tono analítico, perspectiva propia, influencias Dalio (mecanismo), Harari (narrativa macro), Balaji (tesis con datos). Sin relleno, sin neutralidad vacía.
-
-2. **factual_rigor** (1-10): ¿Los datos del artículo coinciden con los del brief? ¿Hay afirmaciones sin respaldo? ¿Se inventaron datos o fuentes?
-
-3. **format_compliance** (1-10): ¿El artículo cumple con la estructura del formato asignado? ¿El largo es correcto? ¿El markdown está bien formateado? ¿Tiene las secciones esperadas?
-
-4. **thematic_alignment** (1-10): ¿El contenido es relevante para las temáticas de la marca (Crypto/DeFi, Tech/IA, GenAI Art, geopolítica tech, startups crypto/IA)?
-
-Respondé SIEMPRE en JSON válido con este formato exacto:
-
-```json
-{{
-    "voice_alignment": 8.0,
-    "factual_rigor": 7.5,
-    "format_compliance": 9.0,
-    "thematic_alignment": 8.5,
-    "feedback": "Feedback específico sobre qué mejorar. Si todo está bien, decí qué está bien."
-}}
-```
-
-Sé específico en el feedback. Si algo falla, explicá exactamente qué y cómo mejorarlo."""
+SYSTEM_PROMPT = get_prompt("editor", "evaluator")
 
 
 def _build_user_prompt(post: dict, brief: dict | None, format_template: str) -> str:

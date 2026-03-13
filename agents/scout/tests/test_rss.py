@@ -1,6 +1,6 @@
 from unittest.mock import patch, MagicMock
 
-from agents.scout.sources.rss import fetch_feed, fetch_all_feeds
+from agents.scout.tools.rss_fetcher import fetch_feed, fetch_all_feeds
 
 
 def _make_feed(entries):
@@ -25,7 +25,7 @@ def _make_entry(title="Test Article", link="https://example.com/1",
 
 
 class TestFetchFeed:
-    @patch("agents.scout.sources.rss.feedparser.parse")
+    @patch("agents.scout.tools.rss_fetcher.feedparser.parse")
     def test_returns_correct_structure(self, mock_parse):
         mock_parse.return_value = _make_feed([
             _make_entry(
@@ -49,13 +49,13 @@ class TestFetchFeed:
         assert item["published_at"] is not None
         assert item["collected_at"] is not None
 
-    @patch("agents.scout.sources.rss.feedparser.parse")
+    @patch("agents.scout.tools.rss_fetcher.feedparser.parse")
     def test_empty_feed_returns_empty_list(self, mock_parse):
         mock_parse.return_value = _make_feed([])
         items = fetch_feed("https://fake.url/rss", "bankless", "news")
         assert items == []
 
-    @patch("agents.scout.sources.rss.feedparser.parse")
+    @patch("agents.scout.tools.rss_fetcher.feedparser.parse")
     def test_entry_without_link_is_skipped(self, mock_parse):
         entry = _make_entry()
         del entry["link"]
@@ -67,7 +67,7 @@ class TestFetchFeed:
         items = fetch_feed("https://fake.url/rss", "test", "news")
         assert items == []
 
-    @patch("agents.scout.sources.rss.feedparser.parse")
+    @patch("agents.scout.tools.rss_fetcher.feedparser.parse")
     def test_bozo_feed_with_no_entries_returns_empty(self, mock_parse):
         feed = _make_feed([])
         feed.bozo = True
@@ -77,7 +77,7 @@ class TestFetchFeed:
         items = fetch_feed("https://fake.url/rss", "broken", "news")
         assert items == []
 
-    @patch("agents.scout.sources.rss.feedparser.parse")
+    @patch("agents.scout.tools.rss_fetcher.feedparser.parse")
     def test_excerpt_truncated_to_280_chars(self, mock_parse):
         long_summary = "A" * 500
         mock_parse.return_value = _make_feed([
@@ -89,7 +89,7 @@ class TestFetchFeed:
 
 
 class TestFetchAllFeeds:
-    @patch("agents.scout.sources.rss.fetch_feed")
+    @patch("agents.scout.tools.rss_fetcher.fetch_feed")
     def test_aggregates_all_feeds(self, mock_fetch):
         mock_fetch.return_value = [{"title": "item", "url": "https://x.com/1"}]
         items = fetch_all_feeds()
@@ -97,7 +97,7 @@ class TestFetchAllFeeds:
         assert len(items) == 6
         assert mock_fetch.call_count == 6
 
-    @patch("agents.scout.sources.rss.fetch_feed")
+    @patch("agents.scout.tools.rss_fetcher.fetch_feed")
     def test_continues_on_feed_error(self, mock_fetch):
         mock_fetch.side_effect = [
             Exception("network error"),

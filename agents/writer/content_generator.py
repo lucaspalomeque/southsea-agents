@@ -7,6 +7,7 @@ un artículo en español con título, contenido markdown y excerpt.
 import json
 import logging
 
+from core.agent_config import get_prompt  # noqa: F401 — template documented in AGENT.md
 from core.llm_client import completion
 from core.model_config import MODELS
 
